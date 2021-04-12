@@ -16,7 +16,7 @@ In response application sends JSON object that contains elapsed time by selected
 
 Examples:
 1. Async mode via Postman:
+![alt text](https://github.com/kssadomtsev/completable-future-demo/blob/master/src/main/resources/data/async.JPG?raw=true)
 
-Request:
-
-`POST http://localhost:8080/api/film/async`
+2. Sync mode via Postman:
+![alt text](https://github.com/kssadomtsev/completable-future-demo/blob/master/src/main/resources/data/sync.JPG?raw=true)
