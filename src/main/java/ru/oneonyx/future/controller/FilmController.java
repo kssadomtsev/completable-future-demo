@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import ru.oneonyx.future.model.Film;
+import ru.oneonyx.future.model.Response;
 import ru.oneonyx.future.repository.DirectorRepository;
 import ru.oneonyx.future.repository.FilmRepository;
 import ru.oneonyx.future.service.FilmService;
@@ -44,10 +45,10 @@ public class FilmController {
 
     @PostMapping(value = "/async", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE},
             produces = {MediaType.APPLICATION_JSON_VALUE})
-    //@ResponseBody
-    public ResponseEntity<String> uploadFileAsync(@RequestParam(value = "files") MultipartFile[] files) {
+    public ResponseEntity<?> uploadFileAsync(@RequestParam(value = "files") MultipartFile[] files) {
         filmRepository.deleteAll();
         directorRepository.deleteAll();
+        filmService.initDirectorMap();
         LOGGER.info("Начато получение и асинхроннная обработка данных");
         LOGGER.info("Поток {}", Thread.currentThread().getName());
         final long start = System.currentTimeMillis();
@@ -57,20 +58,22 @@ public class FilmController {
                 cfList.add(filmService.saveFilmsAsync(file));
             }
             CompletableFuture.allOf(cfList.toArray(new CompletableFuture[0])).join();
-            LOGGER.info("Total elapsed time: {}", (System.currentTimeMillis() - start));
-            return ResponseEntity.status(HttpStatus.CREATED).build();
+            final long totalElapsedTime = System.currentTimeMillis() - start;
+            LOGGER.info("Total elapsed time: {}", totalElapsedTime);
+            Response response = new Response(totalElapsedTime, "Асинхронная обработка данных успешно завершена");
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (final Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return new ResponseEntity<>("Обработка данных завершена аварийно", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
     }
 
     @PostMapping(value = "/sync", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE},
             produces = {MediaType.APPLICATION_JSON_VALUE})
-    //@ResponseBody
-    public ResponseEntity<String> uploadFile(@RequestParam(value = "files") MultipartFile[] files) {
+    public ResponseEntity<?> uploadFile(@RequestParam(value = "files") MultipartFile[] files) {
         filmRepository.deleteAll();
         directorRepository.deleteAll();
+        filmService.initDirectorMap();
         LOGGER.info("Начато получение и синхроннная обработка данных");
         final long start = System.currentTimeMillis();
         try {
@@ -78,24 +81,13 @@ public class FilmController {
             for (final MultipartFile file : files) {
                 films.addAll(filmService.saveFilms(file));
             }
-            LOGGER.info("Total elapsed time: {}", (System.currentTimeMillis() - start));
-            return ResponseEntity.status(HttpStatus.CREATED).build();
+            final long totalElapsedTime = System.currentTimeMillis() - start;
+            LOGGER.info("Total elapsed time: {}", totalElapsedTime);
+            Response response = new Response(totalElapsedTime, "Синхронная обработка данных успешно завершена");
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (final Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return new ResponseEntity<>("Обработка данных завершена аварийно", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
     }
-
-//    @RequestMapping(method = RequestMethod.GET, consumes = {MediaType.APPLICATION_JSON_VALUE},
-//            produces = {MediaType.APPLICATION_JSON_VALUE})
-//    public @ResponseBody
-//    CompletableFuture<ResponseEntity> getAllCars() {
-//        return carService.getAllCars().<ResponseEntity>thenApply(ResponseEntity::ok)
-//                .exceptionally(handleGetCarFailure);
-//    }
-//
-//    private static Function<Throwable, ResponseEntity<? extends List<Car>>> handleGetCarFailure = throwable -> {
-//        LOGGER.error("Failed to read records: {}", throwable);
-//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-//    };
 }

@@ -3,9 +3,11 @@ package ru.oneonyx.future.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import ru.oneonyx.future.dto.DataDto;
 import ru.oneonyx.future.model.Director;
 import ru.oneonyx.future.model.Film;
 import ru.oneonyx.future.repository.FilmRepository;
@@ -17,7 +19,9 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class FilmServiceImpl implements FilmService {
@@ -26,9 +30,20 @@ public class FilmServiceImpl implements FilmService {
 
     private final FilmRepository filmRepository;
 
+    private final ExchangeService exchangeService;
+
+    @Value("${director.url.type1}")
+    private String directorType1Url;
+
+    @Value("${director.url.type2}")
+    private String directorType2Url;
+
+    private Map<String, Director> directorMap;
+
     @Autowired
-    public FilmServiceImpl(FilmRepository filmRepository) {
+    public FilmServiceImpl(FilmRepository filmRepository, ExchangeService exchangeService) {
         this.filmRepository = filmRepository;
+        this.exchangeService = exchangeService;
     }
 
     @Async
@@ -46,7 +61,6 @@ public class FilmServiceImpl implements FilmService {
         } catch (Exception exception) {
             LOGGER.info("" + exception);
         }
-
 
         LOGGER.info("Elapsed time: {}, для потока: {}", (System.currentTimeMillis() - start), Thread.currentThread().getName());
         return CompletableFuture.completedFuture(films);
@@ -81,7 +95,27 @@ public class FilmServiceImpl implements FilmService {
                     film.setSubject(data[3]);
                     film.setActor(data[4]);
                     film.setActress(data[5]);
-                    film.setDirector(new Director());
+                    String directorName = data[6];
+                    Director director = new Director();
+                    director.setName(directorName);
+                    if (directorMap.size() < 50) {
+                        if (directorMap.containsKey(directorName)) {
+                            Director fetchedDirector = directorMap.get(directorName);
+                            director.setAge(fetchedDirector.getAge());
+                            director.setCountry(fetchedDirector.getCountry());
+                        } else {
+                            DataDto dataDto;
+                            if (directorMap.size() % 2 == 0) {
+                                dataDto = exchangeService.getData(directorType1Url);
+                            } else {
+                                dataDto = exchangeService.getData(directorType2Url);
+                            }
+                            director.setAge(dataDto.getAge());
+                            director.setCountry(dataDto.getCountry());
+                            directorMap.put(directorName, director);
+                        }
+                    }
+                    film.setDirector(director);
                     film.setPopularity(tryParse(data[7]));
                     films.add(film);
                 }
@@ -100,11 +134,9 @@ public class FilmServiceImpl implements FilmService {
             return null;
         }
     }
+
+    public void initDirectorMap() {
+        directorMap = new ConcurrentHashMap<>();
+    }
 }
-
-
-//https://run.mocky.io/v3/50fcfb21-8408-47b5-bc63-4195ef5fc536
-//
-//
-//        https://run.mocky.io/v3/b0f6948f-10e2-47b5-8573-1c9b111870f7
 

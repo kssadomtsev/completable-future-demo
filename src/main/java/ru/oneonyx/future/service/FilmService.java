@@ -11,4 +11,6 @@ public interface FilmService {
     CompletableFuture<List<Film>> saveFilmsAsync(final MultipartFile file) throws Exception;
 
     List<Film> saveFilms(final MultipartFile file) throws Exception;
+
+    void initDirectorMap();
 }

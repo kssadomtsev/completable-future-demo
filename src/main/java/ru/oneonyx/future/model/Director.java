@@ -19,7 +19,7 @@ public class Director {
     @Column
     private Long id;
 
-    @Column(unique = true)
+    @Column
     private String name;
 
     @Column
